@@ -9,6 +9,7 @@ const issueSchema = new mongoose.Schema({
   priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   createdDate: { type: Date, default: Date.now },
   updatedDate: { type: Date, default: Date.now },
+  assignedTo:{ type: String, required: true },
   sprintId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sprint', required: true },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true }
 });

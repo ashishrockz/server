@@ -38,9 +38,9 @@ app.use('/api/issue', verifyToken, issue);
 // }
 
 // Catch-all route for undefined routes
-// app.use((req, res) => {
-//   res.status(404).send('404: Not Found');
-// });
+app.use((req, res) => {
+  res.status(404).send('404: Not Found');
+});
 
 const port = process.env.PORT || 8080; // Default to port 8080 if not specified in .env
 app.listen(port, () => {

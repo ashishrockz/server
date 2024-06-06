@@ -6,20 +6,23 @@ const Sprint = require('../model/sprint');
 
 router.get('/:sprintId', async (req, res) => {
   try {
-    const issues = await Issue.find({ sprintId: req.params.sprintId });
+    const sprintId = req.params.sprintId;
+    const issues = await Issue.find({ sprintId });
     if (!issues || issues.length === 0) {
       return res.status(404).json({ message: 'No issues found for this sprint' });
     }
     res.json(issues);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error fetching issues:", err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 // Create a new issue for a sprint
 router.post('/:sprintId', async (req, res) => {
   // Extract necessary data from request body
-  const { title, Summary, status, issueType, priority, projectId } = req.body;
+  const { title, Summary, status, issueType, priority,assignedTo, projectId } = req.body;
   const sprintId = req.params.sprintId; // Get sprintId from URL params
 
   try {
@@ -36,6 +39,7 @@ router.post('/:sprintId', async (req, res) => {
       status: status || 'Open',
       issueType: issueType || 'Task',
       priority: priority || 'Medium',
+      assignedTo,
       projectId,
       sprintId
     });
@@ -66,9 +70,7 @@ router.post('/:sprintId', async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
-// Get a single issue
-router.get('/issue/:id', async (req, res) => {
+router.get('/:sprintId/task/:id', async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id);
     if (!issue) {
@@ -76,12 +78,14 @@ router.get('/issue/:id', async (req, res) => {
     }
     res.json(issue);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error(err.message);
+    res.status(500).json({ message: 'Server Error' });
   }
 });
 
+
 // Update an issue
-router.put('/issue/:id', async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id);
     if (!issue) {
@@ -93,6 +97,7 @@ router.put('/issue/:id', async (req, res) => {
     issue.status = req.body.status || issue.status;
     issue.issueType = req.body.issueType || issue.issueType;
     issue.priority = req.body.priority || issue.priority;
+    issue.assignedTo = req.body.assignedTo || issue.assignedTo;
     issue.updatedDate = Date.now();
 
     const updatedIssue = await issue.save();
@@ -102,33 +107,22 @@ router.put('/issue/:id', async (req, res) => {
   }
 });
 
-// Delete an issue
-router.delete('/issue/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id);
+    const issue = await Issue.findOneAndDelete({ _id: req.params.id });
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
     }
-
-    await issue.remove();
-
     // Remove the issue from the sprint's issue list
-    const sprint = await Sprint.findOne({ issues: issue._id });
-    if (sprint) {
-      sprint.issues.pull(issue._id);
-      await sprint.save();
-    }
+    await Sprint.updateOne({ issues: issue._id }, { $pull: { issues: issue._id } });
 
     // Remove the issue from the project's issue list
-    const project = await Project.findOne({ issues: issue._id });
-    if (project) {
-      project.issues.pull(issue._id);
-      await project.save();
-    }
+    await Project.updateOne({ issues: issue._id }, { $pull: { issues: issue._id } });
 
     res.json({ message: 'Issue deleted' });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error deleting issue:', err);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
