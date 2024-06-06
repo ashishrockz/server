@@ -32,11 +32,9 @@ app.use('/api/issue', verifyToken, issue);
 //     res.sendFile(path.resolve(__dirname1, "client", "bulid" , "index.html"));
 //   });
 // }else{
-  app.get('/', (req, res) => {
-    res.send('Welcome to the API');
-  });
-// }
-
+app.get('/', (req, res) => {
+  res.send('Welcome to the API');
+});
 // Catch-all route for undefined routes
 app.use((req, res) => {
   res.status(404).send('404: Not Found');
