@@ -21,7 +21,9 @@
     "joi-password-complexity": "^5.2.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.6.2",
-    "mongoose": "^8.4.0"
+    "mongoose": "^8.4.0",
+    "vercel": "^34.2.6"
+
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
