@@ -5,7 +5,7 @@ const issueSchema = new mongoose.Schema({
   title: { type: String, required: true },
   Summary: { type: String, required: true },
   status: { type: String, enum: ['Open', 'In Progress', 'Closed'], default: 'Open' },
-  issueType: { type: String, enum: ['Task', 'Epic'], default: 'Task' },
+  issueType: { type: String, enum: ['Task', 'Epic','Bug'], default: 'Task' },
   priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   createdDate: { type: Date, default: Date.now },
   updatedDate: { type: Date, default: Date.now },
