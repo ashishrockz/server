@@ -5,24 +5,47 @@ const issueSchema = new mongoose.Schema({
   title: { type: String, required: true },
   Summary: { type: String, required: true },
   status: { type: String, enum: ['Open', 'In Progress', 'Closed'], default: 'Open' },
-  issueType: { type: String, enum: ['Task', 'Epic','Bug'], default: 'Task' },
+  issueType: { type: String, enum: ['Task', 'Bug'], default: 'Task' },
   priority: { type: String, enum: ['High', 'Medium', 'Low'], default: 'Medium' },
   createdDate: { type: Date, default: Date.now },
   updatedDate: { type: Date, default: Date.now },
-  assignedTo:{ type: String, required: true },
+  assignedTo: { type: String, required: true },
   sprintId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sprint', required: true },
-  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true }
+  projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
+  subIssues: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SubIssue' }] // New field for sub-issues
 });
 
 // Pre-save hook to generate customId
 issueSchema.pre('save', async function (next) {
   if (this.isNew) {
-    const project = await this.model('Project').findOne({ _id: this.projectId });
-    const projectKey = project.key;
-    const issueCount = await this.constructor.countDocuments({ projectId: this.projectId });
-    this.customId = `${projectKey}-${issueCount + 1}`;
+    try {
+      const project = await this.model('Project').findOne({ _id: this.projectId });
+      const projectKey = project.key;
+      let customId;
+      let isUnique = false;
+
+      for (let attempt = 0; attempt < 5; attempt++) { // Retry up to 5 times
+        const issueCount = await this.constructor.countDocuments({ projectId: this.projectId });
+        customId = `${projectKey}-${issueCount + 1 + attempt}`; // Adding attempt to ensure uniqueness
+        const existingIssue = await this.constructor.findOne({ customId });
+        if (!existingIssue) {
+          isUnique = true;
+          break;
+        }
+      }
+
+      if (!isUnique) {
+        throw new Error('Failed to generate a unique customId after multiple attempts');
+      }
+
+      this.customId = customId;
+      next();
+    } catch (error) {
+      next(error);
+    }
+  } else {
+    next();
   }
-  next();
 });
 
 module.exports = mongoose.model('Issue', issueSchema);

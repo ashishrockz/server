@@ -18,7 +18,6 @@ router.get('/:sprintId', async (req, res) => {
   }
 });
 
-
 // Create a new issue for a sprint
 router.post('/:sprintId', async (req, res) => {
   // Extract necessary data from request body

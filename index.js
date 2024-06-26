@@ -8,6 +8,7 @@ const authentication = require('./routers/auth');
 const project = require('./routers/project');
 const sprint = require('./routers/sprint');
 const issue = require('./routers/issue');
+const subissue = require('./routers/subissue');
 const verifyToken = require('./middleware/auth');
 
 // Database connection
@@ -24,11 +25,19 @@ app.use('/auth', authentication);
 app.use('/api/project', verifyToken, project);
 app.use('/api/sprint', verifyToken, sprint);
 app.use('/api/issue', verifyToken, issue);
+app.use('/api/subissue', verifyToken, subissue);
 
-
+// const __dirname1 =path.resolve();
+// if(process.env.NODE_ENV === "production"){
+//   app.use(express.static(path.join(__dirname1, "/client/build/")));
+//   app.get("*", (req, res) => {
+//     res.sendFile(path.resolve(__dirname1, "client", "bulid" , "index.html"));
+//   });
+// }else{
   app.get('/', (req, res) => {
     res.send('Welcome to the API');
   });
+// }
 
 // Catch-all route for undefined routes
 app.use((req, res) => {
