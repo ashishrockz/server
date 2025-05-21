@@ -1,13 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const { check, validationResult } = require('express-validator');
 const Issue = require('../model/issue');
 const Project = require('../model/project');
 const Sprint = require('../model/sprint');
 
+// Jira-like workflow transitions
+const WORKFLOW_TRANSITIONS = {
+  'Open': ['In Progress', 'Closed'],
+  'In Progress': ['Open', 'Closed'],
+  'Closed': ['Open']
+};
+
+// Get all issues for a sprint
 router.get('/:sprintId', async (req, res) => {
   try {
     const sprintId = req.params.sprintId;
-    const issues = await Issue.find({ sprintId });
+    const issues = await Issue.find({ sprintId }).populate('assignedTo subIssues');
     if (!issues || issues.length === 0) {
       return res.status(404).json({ message: 'No issues found for this sprint' });
     }
@@ -19,19 +28,26 @@ router.get('/:sprintId', async (req, res) => {
 });
 
 // Create a new issue for a sprint
-router.post('/:sprintId', async (req, res) => {
-  // Extract necessary data from request body
-  const { title, Summary, status, issueType, priority,assignedTo, projectId } = req.body;
-  const sprintId = req.params.sprintId; // Get sprintId from URL params
+router.post('/:sprintId', [
+  check('title').notEmpty().withMessage('Title is required'),
+  check('sprintId').notEmpty().withMessage('Sprint ID is required'),
+  check('assignedTo').notEmpty().withMessage('Assigned user is required'),
+  check('projectId').notEmpty().withMessage('Project ID is required')
+], async (req, res) => {
+  const sprintId = req.params.sprintId;
+  const { title, Summary, status, issueType, priority, assignedTo, projectId } = req.body;
 
   try {
-    // Check if the sprint exists
     const sprint = await Sprint.findById(sprintId);
     if (!sprint) {
       return res.status(404).json({ message: 'Sprint not found' });
     }
 
-    // Create a new issue instance
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
     const issue = new Issue({
       title,
       Summary,
@@ -43,35 +59,25 @@ router.post('/:sprintId', async (req, res) => {
       sprintId
     });
 
-    // Save the new issue to the database
     const newIssue = await issue.save();
-
-    // If applicable, update associated project
-    if (projectId) {
-      const project = await Project.findById(projectId);
-      if (project) {
-        // Ensure that project.issues is defined before pushing newIssue._id
-        project.issues = project.issues || [];
-        project.issues.push(newIssue._id);
-        await project.save();
-      }
-    }
-
-    // Update the sprint with the new issue
     sprint.issues = sprint.issues || [];
     sprint.issues.push(newIssue._id);
     await sprint.save();
 
-    // Send a success response with the new issue data
+    project.issues = project.issues || [];
+    project.issues.push(newIssue._id);
+    await project.save();
+
     res.status(201).json(newIssue);
   } catch (err) {
-    // If an error occurs, send an error response
     res.status(400).json({ message: err.message });
   }
 });
+
+// Get a single issue
 router.get('/:sprintId/task/:id', async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id);
+    const issue = await Issue.findById(req.params.id).populate('assignedTo subIssues');
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
     }
@@ -82,13 +88,19 @@ router.get('/:sprintId/task/:id', async (req, res) => {
   }
 });
 
-
 // Update an issue
-router.put('/:id', async (req, res) => {
+router.put('/:id', [
+  check('status').optional().isIn(['Open', 'In Progress', 'Closed']).withMessage('Invalid status')
+], async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id);
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
+    }
+
+    // Validate workflow transition
+    if (req.body.status && !WORKFLOW_TRANSITIONS[issue.status].includes(req.body.status)) {
+      return res.status(400).json({ message: `Invalid transition from ${issue.status} to ${req.body.status}` });
     }
 
     issue.title = req.body.title || issue.title;
@@ -106,16 +118,15 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// Delete an issue
 router.delete('/:id', async (req, res) => {
   try {
     const issue = await Issue.findOneAndDelete({ _id: req.params.id });
     if (!issue) {
       return res.status(404).json({ message: 'Issue not found' });
     }
-    // Remove the issue from the sprint's issue list
-    await Sprint.updateOne({ issues: issue._id }, { $pull: { issues: issue._id } });
 
-    // Remove the issue from the project's issue list
+    await Sprint.updateOne({ issues: issue._id }, { $pull: { issues: issue._id } });
     await Project.updateOne({ issues: issue._id }, { $pull: { issues: issue._id } });
 
     res.json({ message: 'Issue deleted' });

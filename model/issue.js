@@ -12,7 +12,8 @@ const issueSchema = new mongoose.Schema({
   assignedTo: { type: String, required: true },
   sprintId: { type: mongoose.Schema.Types.ObjectId, ref: 'Sprint', required: true },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
-  subIssues: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SubIssue' }] // New field for sub-issues
+  subIssues: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SubIssue' }],
+  workflow: { type: [String], default: ['Open', 'In Progress', 'Closed'] } // Define allowed states
 });
 
 // Pre-save hook to generate customId
@@ -24,9 +25,9 @@ issueSchema.pre('save', async function (next) {
       let customId;
       let isUnique = false;
 
-      for (let attempt = 0; attempt < 5; attempt++) { // Retry up to 5 times
+      for (let attempt = 0; attempt < 5; attempt++) {
         const issueCount = await this.constructor.countDocuments({ projectId: this.projectId });
-        customId = `${projectKey}-${issueCount + 1 + attempt}`; // Adding attempt to ensure uniqueness
+        customId = `${projectKey}-${issueCount + 1 + attempt}`;
         const existingIssue = await this.constructor.findOne({ customId });
         if (!existingIssue) {
           isUnique = true;
@@ -35,7 +36,7 @@ issueSchema.pre('save', async function (next) {
       }
 
       if (!isUnique) {
-        throw new Error('Failed to generate a unique customId after multiple attempts');
+        throw new Error('Failed to generate a unique customId');
       }
 
       this.customId = customId;
