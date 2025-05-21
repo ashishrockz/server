@@ -10,14 +10,14 @@ const project = require('./routers/project');
 const sprint = require('./routers/sprint');
 const issue = require('./routers/issue');
 const subissue = require('./routers/subissue');
-const verifyToken = require('./middleware/auth');
+const { verifyToken } = require('./routers/auth');
 
 // Database connection
 connection();
 
 // Middlewares
 const app = express();
-app.use(cors()); // CORS middleware
+app.use(cors({ origin: process.env.FRONTEND_URL || '*' })); // Restrict in production
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
@@ -31,7 +31,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/auth', authentication);
+app.use('/auth', authentication.router);
 app.use('/api/project', verifyToken, project);
 app.use('/api/sprint', verifyToken, sprint);
 app.use('/api/issue', verifyToken, issue);
@@ -41,7 +41,7 @@ app.use('/api/subissue', verifyToken, subissue);
 const __dirname1 = path.resolve();
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname1, "/client/build")));
-  app.get("*", (req, res) => {
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.resolve(__dirname1, "client", "build", "index.html"));
   });
 } else {
@@ -59,3 +59,5 @@ const port = process.env.PORT || 8080;
 app.listen(port, () => {
   console.log(`Server running on port ${port}...`);
 });
+
+module.exports = app; // For Vercel serverless
