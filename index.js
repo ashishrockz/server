@@ -36,19 +36,18 @@ app.use('/api/project', verifyToken, project);
 app.use('/api/sprint', verifyToken, sprint);
 app.use('/api/issue', verifyToken, issue);
 app.use('/api/subissue', verifyToken, subissue);
-
 // Serve frontend in production
-const __dirname1 = path.resolve();
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname1, "/client/build")));
-  app.get(/^(?!\/api).*/, (req, res) => {
-    res.sendFile(path.resolve(__dirname1, "client", "build", "index.html"));
-  });
-} else {
+// const __dirname1 = path.resolve();
+// if (process.env.NODE_ENV === "production") {
+//   app.use(express.static(path.join(__dirname1, "/client/build")));
+//   app.get(/^(?!\/api).*/, (req, res) => {
+//     res.sendFile(path.resolve(__dirname1, "client", "build", "index.html"));
+//   });
+// } else {
   app.get('/', (req, res) => {
     res.send('Welcome to the Jira-like API');
   });
-}
+// }
 
 // Catch-all route for undefined routes
 app.use((req, res) => {
