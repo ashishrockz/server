@@ -4,19 +4,13 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { check, validationResult } = require('express-validator');
-const connection = require('./service/db');
+const connection = require('./service/db'); // Make sure this exports properly
 const authentication = require('./routers/auth');
 const project = require('./routers/project');
 const sprint = require('./routers/sprint');
 const issue = require('./routers/issue');
 const subissue = require('./routers/subissue');
 const { verifyToken } = require('./routers/auth');
-
-// Database connection with error handling
-connection().catch(err => {
-  console.error('Database connection failed:', err);
-  process.exit(1);
-});
 
 // Initialize Express app
 const app = express();
@@ -29,21 +23,27 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
+  origin: allowedOrigins,
   credentials: true
 }));
 
 // Middlewares
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
+// Database connection (modified to handle non-promise returns)
+try {
+  const dbConnection = connection();
+  if (dbConnection && typeof dbConnection.catch === 'function') {
+    dbConnection.catch(err => {
+      console.error('Database connection failed:', err);
+      process.exit(1);
+    });
+  }
+  console.log('Connecting to database...');
+} catch (err) {
+  console.error('Database connection error:', err);
+}
 
 // Log environment info
 console.log('Running in', process.env.NODE_ENV || 'development');
@@ -72,7 +72,7 @@ if (process.env.NODE_ENV === "production") {
   // Serve static files
   app.use(express.static(path.join(__dirname1, "client/build")));
   
-  // Handle React routing, return all requests to React app
+  // Handle React routing
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(__dirname1, "client", "build", "index.html"));
   });
@@ -81,11 +81,6 @@ if (process.env.NODE_ENV === "production") {
     res.send('Welcome to the Jira-like API (Development Mode)');
   });
 }
-
-// Catch-all route for undefined routes
-app.use((req, res) => {
-  res.status(404).json({ message: '404: Not Found' });
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -101,4 +96,4 @@ app.listen(port, () => {
   console.log(`Server running on port ${port}...`);
 });
 
-module.exports = app; // For Vercel serverless
+module.exports = app;
